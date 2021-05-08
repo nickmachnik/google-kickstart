@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/csv"
-	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -12,7 +11,6 @@ type testCase struct {
 	rows int
 	cols int
 	grid [][]int
-	err  error
 }
 
 type testCaseOrErr struct {
@@ -26,30 +24,34 @@ func main() {
 
 // -------- Input reading -------- //
 
-// Go
+func NewTestCase(rows, cols int, heights [][]int) testCase {
+	return testCase{
+		rows,
+		cols,
+		heights,
+	}
+}
 
-func NewTestCaseOrErr(rawLines []string) (res testCaseOrErr) {
-	strings.Split() rawLines[0]
-	strconv.ParseInt() 
+func NewTestCaseOrErr(rows, cols int, heights [][]int, err error) testCaseOrErr {
+	return testCaseOrErr{
+		NewTestCase(rows, cols, heights),
+		err,
+	}
+}
+
+func parseIntFields(line string) (ints []int, err error) {
+	for _, field := range strings.Fields(line) {
+		convField, err := strconv.Atoi(field)
+		if err != nil {
+			return []int{}, err
+		}
+		ints = append(ints, convField)
+	}
 	return
 }
 
-func recordToPoint(record []string) (p Point, err error) {
-	if len(record) != 2 {
-		err = fmt.Errorf("Records must have two columns")
-		return
-	}
-	if p.X, err = strconv.ParseFloat(record[0], 64); err != nil {
-		return
-	}
-	if p.Y, err = strconv.ParseFloat(record[1], 64); err != nil {
-		return
-	}
-	return
-}
-
 // Go
-func LoadCsvDataToChannel(in io.Reader) <-chan PointOrErr {
+func LoadCsvDataToChannel(in io.Reader) <-chan testCaseOrErr {
 	out := make(chan PointOrErr)
 	go func() {
 		defer close(out)
