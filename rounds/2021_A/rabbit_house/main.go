@@ -25,37 +25,61 @@ type testCaseOrErr struct {
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	testCases := loadTestCasesToChannel(reader)
+	var testIx int
 	for test := range testCases {
+		testIx++
 		if test.err != nil {
 			log.Fatal(test.err)
 		}
 		numAdditions := makeRabbitHouseSafe(&test.testCase)
-		fmt.Println(numAdditions)
+		fmt.Printf("Case #%d: %d\n", testIx, numAdditions)
 	}
 }
 
-func makeRabbitHouseSafe(house *testCase) (numAdditions int) {
+func makeRabbitHouseSafe(house *testCase) (totalAddedHeight int) {
 	flatGrid := flattenGrid(house.rows, house.cols, house.grid)
 	sort.Slice(flatGrid, func(i, j int) bool {
 		return flatGrid[i].height > flatGrid[j].height
 	})
 
+	auxillaryQueue := make(chan gridLocation, len(flatGrid))
+	var lastHeight int
 	for _, loc := range flatGrid {
-		if loc.height != house.grid[loc.row][loc.col] {
-			continue
+		if loc.height != lastHeight {
+			numQueued := len(auxillaryQueue)
+			for i := 0; i < numQueued; i++ {
+				queuedLoc := <-auxillaryQueue
+				totalAddedHeight += secureLocation(&queuedLoc, house, auxillaryQueue)
+			}
 		}
-
+		totalAddedHeight += secureLocation(&loc, house, auxillaryQueue)
+		lastHeight = loc.height
 	}
+
+	return
 }
 
-func adjustNeighborHeights(loc *gridLocation, house *testCase) (totalAddedHeight int, adjustedLocs []gridLocation) {
+func secureLocation(loc *gridLocation, house *testCase, auxillaryQueue chan gridLocation) (addedHeight int) {
+	if loc.height != house.grid[loc.row][loc.col] {
+		return
+	}
+	addedHeight += adjustNeighborHeights(loc, house, auxillaryQueue)
+
+	return
+}
+
+func adjustNeighborHeights(loc *gridLocation, house *testCase, auxillaryQueue chan gridLocation) (addedHeight int) {
 	for _, neighbor := range getNeighborLocs(loc, house) {
 		heightDiff := loc.height - neighbor.height
-		totalAddedHeight += heightDiff - 1
 		if heightDiff > 1 {
-
+			addedHeight += heightDiff - 1
+			house.grid[neighbor.row][neighbor.col] = loc.height - 1
+			neighbor.height = loc.height - 1
+			auxillaryQueue <- neighbor
 		}
 	}
+
+	return
 }
 
 func getNeighborLocs(loc *gridLocation, house *testCase) (neighbors []gridLocation) {
@@ -71,6 +95,7 @@ func getNeighborLocs(loc *gridLocation, house *testCase) (neighbors []gridLocati
 	if loc.col > 0 {
 		neighbors = append(neighbors, gridLocation{loc.row, loc.col - 1, house.grid[loc.row][loc.col-1]})
 	}
+
 	return
 }
 
