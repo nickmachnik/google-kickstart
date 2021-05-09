@@ -31,7 +31,14 @@ func main() {
 		if test.err != nil {
 			log.Fatal(test.err)
 		}
+		for _, row := range test.grid {
+			fmt.Println(row)
+		}
+		fmt.Println("------")
 		numAdditions := makeRabbitHouseSafe(&test.testCase)
+		for _, row := range test.grid {
+			fmt.Println(row)
+		}
 		fmt.Printf("Case #%d: %d\n", testIx, numAdditions)
 	}
 }
