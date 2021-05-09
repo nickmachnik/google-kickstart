@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -28,8 +29,63 @@ func main() {
 		if test.err != nil {
 			log.Fatal(test.err)
 		}
-		fmt.Println(test)
+		numAdditions := makeRabbitHouseSafe(&test.testCase)
+		fmt.Println(numAdditions)
 	}
+}
+
+func makeRabbitHouseSafe(house *testCase) (numAdditions int) {
+	flatGrid := flattenGrid(house.rows, house.cols, house.grid)
+	sort.Slice(flatGrid, func(i, j int) bool {
+		return flatGrid[i].height > flatGrid[j].height
+	})
+
+	for _, loc := range flatGrid {
+		if loc.height != house.grid[loc.row][loc.col] {
+			continue
+		}
+
+	}
+}
+
+func adjustNeighborHeights(loc *gridLocation, house *testCase) (totalAddedHeight int, adjustedLocs []gridLocation) {
+	for _, neighbor := range getNeighborLocs(loc, house) {
+		heightDiff := loc.height - neighbor.height
+		totalAddedHeight += heightDiff - 1
+		if heightDiff > 1 {
+
+		}
+	}
+}
+
+func getNeighborLocs(loc *gridLocation, house *testCase) (neighbors []gridLocation) {
+	if loc.row > 0 {
+		neighbors = append(neighbors, gridLocation{loc.row - 1, loc.col, house.grid[loc.row-1][loc.col]})
+	}
+	if loc.col < house.cols-1 {
+		neighbors = append(neighbors, gridLocation{loc.row, loc.col + 1, house.grid[loc.row][loc.col+1]})
+	}
+	if loc.row < house.rows-1 {
+		neighbors = append(neighbors, gridLocation{loc.row + 1, loc.col, house.grid[loc.row+1][loc.col]})
+	}
+	if loc.col > 0 {
+		neighbors = append(neighbors, gridLocation{loc.row, loc.col - 1, house.grid[loc.row][loc.col-1]})
+	}
+	return
+}
+
+type gridLocation struct {
+	row, col, height int
+}
+
+func flattenGrid(rows, cols int, grid [][]int) []gridLocation {
+	flatGrid := make([]gridLocation, 0, rows*cols)
+	for rowIx, row := range grid {
+		for colIx, height := range row {
+			flatGrid = append(flatGrid, gridLocation{rowIx, colIx, height})
+		}
+	}
+	return flatGrid
 }
 
 // -------- Input reading -------- //
