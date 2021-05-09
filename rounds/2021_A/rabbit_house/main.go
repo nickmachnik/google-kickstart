@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -31,93 +30,140 @@ func main() {
 		if test.err != nil {
 			log.Fatal(test.err)
 		}
-		for _, row := range test.grid {
-			fmt.Println(row)
-		}
-		fmt.Println("------")
 		numAdditions := makeRabbitHouseSafe(&test.testCase)
-		for _, row := range test.grid {
-			fmt.Println(row)
-		}
 		fmt.Printf("Case #%d: %d\n", testIx, numAdditions)
 	}
 }
 
-func makeRabbitHouseSafe(house *testCase) (totalAddedHeight int) {
-	flatGrid := flattenGrid(house.rows, house.cols, house.grid)
-	sort.Slice(flatGrid, func(i, j int) bool {
-		return flatGrid[i].height > flatGrid[j].height
-	})
-
-	auxillaryQueue := make(chan gridLocation, len(flatGrid))
-	var lastHeight int
-	for _, loc := range flatGrid {
-		if loc.height != lastHeight {
-			numQueued := len(auxillaryQueue)
-			for i := 0; i < numQueued; i++ {
-				queuedLoc := <-auxillaryQueue
-				totalAddedHeight += secureLocation(&queuedLoc, house, auxillaryQueue)
-			}
+func makeRabbitHouseSafe(house *testCase) (totalHeightIncrease int) {
+	buckets := newHeightBuckets(&house.grid)
+	for {
+		if buckets.maxHeight == 0 {
+			break
 		}
-		totalAddedHeight += secureLocation(&loc, house, auxillaryQueue)
-		lastHeight = loc.height
+		totalHeightIncrease += secureNextLocation(buckets, house)
 	}
 
 	return
 }
 
-func secureLocation(loc *gridLocation, house *testCase, auxillaryQueue chan gridLocation) (addedHeight int) {
-	if loc.height != house.grid[loc.row][loc.col] {
-		return
-	}
-	addedHeight += adjustNeighborHeights(loc, house, auxillaryQueue)
+func secureNextLocation(buckets *heightBuckets, house *testCase) (addedHeight int) {
+	loc := buckets.getLocationAtMaxHeight()
+	locHeight := getLocationHeight(loc, house)
+	defer buckets.removeLocation(locHeight, loc)
 
-	return
-}
-
-func adjustNeighborHeights(loc *gridLocation, house *testCase, auxillaryQueue chan gridLocation) (addedHeight int) {
-	for _, neighbor := range getNeighborLocs(loc, house) {
-		heightDiff := loc.height - neighbor.height
+	for _, neighbor := range getNeighborLocations(loc, house) {
+		neighborHeight := getLocationHeight(neighbor, house)
+		heightDiff := locHeight - neighborHeight
 		if heightDiff > 1 {
 			addedHeight += heightDiff - 1
-			house.grid[neighbor.row][neighbor.col] = loc.height - 1
-			neighbor.height = loc.height - 1
-			auxillaryQueue <- neighbor
+			buckets.insertLocation(locHeight-1, neighbor)
+			setLocationHeight(locHeight-1, neighbor, house)
+			buckets.removeLocation(neighborHeight, neighbor)
 		}
 	}
 
 	return
 }
 
-func getNeighborLocs(loc *gridLocation, house *testCase) (neighbors []gridLocation) {
+func setLocationHeight(height int, loc location, house *testCase) {
+	house.grid[loc.row][loc.col] = height
+}
+
+func getLocationHeight(loc location, house *testCase) (height int) {
+	return house.grid[loc.row][loc.col]
+}
+
+func getNeighborLocations(loc location, house *testCase) (neighbors []location) {
 	if loc.row > 0 {
-		neighbors = append(neighbors, gridLocation{loc.row - 1, loc.col, house.grid[loc.row-1][loc.col]})
+		neighbors = append(neighbors, location{loc.row - 1, loc.col})
 	}
 	if loc.col < house.cols-1 {
-		neighbors = append(neighbors, gridLocation{loc.row, loc.col + 1, house.grid[loc.row][loc.col+1]})
+		neighbors = append(neighbors, location{loc.row, loc.col + 1})
 	}
 	if loc.row < house.rows-1 {
-		neighbors = append(neighbors, gridLocation{loc.row + 1, loc.col, house.grid[loc.row+1][loc.col]})
+		neighbors = append(neighbors, location{loc.row + 1, loc.col})
 	}
 	if loc.col > 0 {
-		neighbors = append(neighbors, gridLocation{loc.row, loc.col - 1, house.grid[loc.row][loc.col-1]})
+		neighbors = append(neighbors, location{loc.row, loc.col - 1})
 	}
 
 	return
 }
 
-type gridLocation struct {
-	row, col, height int
+type location struct {
+	row, col int
 }
 
-func flattenGrid(rows, cols int, grid [][]int) []gridLocation {
-	flatGrid := make([]gridLocation, 0, rows*cols)
-	for rowIx, row := range grid {
-		for colIx, height := range row {
-			flatGrid = append(flatGrid, gridLocation{rowIx, colIx, height})
+type heightBuckets struct {
+	buckets   map[int]map[location]struct{}
+	maxHeight int
+}
+
+func (b *heightBuckets) getLocationAtMaxHeight() location {
+	loc, err := b.getLocationAtHeight(b.maxHeight)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return loc
+}
+
+func (b *heightBuckets) getLocationAtHeight(height int) (loc location, err error) {
+	for loc = range b.buckets[height] {
+
+		return loc, err
+	}
+
+	return loc, fmt.Errorf("no location found at height: %d", height)
+}
+
+func (b *heightBuckets) insertLocation(height int, loc location) {
+	if _, ok := b.buckets[height]; !ok {
+		b.buckets[height] = map[location]struct{}{}
+	}
+	b.buckets[height][loc] = struct{}{}
+	if height > b.maxHeight {
+		b.maxHeight = height
+	}
+}
+
+func (b *heightBuckets) removeLocation(height int, loc location) {
+	delete(b.buckets[height], loc)
+	if len(b.buckets[height]) == 0 {
+		delete(b.buckets, height)
+	}
+	if height == b.maxHeight {
+		b.decreaseMaxHeight()
+	}
+}
+
+func (b *heightBuckets) decreaseMaxHeight() {
+	if len(b.buckets) == 0 {
+		b.maxHeight = 0
+
+		return
+	}
+	for {
+		if _, ok := b.buckets[b.maxHeight]; !ok {
+			b.maxHeight--
+		} else {
+			break
 		}
 	}
-	return flatGrid
+}
+
+func newHeightBuckets(grid *[][]int) *heightBuckets {
+	ret := heightBuckets{
+		buckets:   make(map[int]map[location]struct{}),
+		maxHeight: 0,
+	}
+	for rowIx, row := range *grid {
+		for colIx, height := range row {
+			ret.insertLocation(height, location{rowIx, colIx})
+		}
+	}
+	return &ret
 }
 
 // -------- Input reading -------- //
