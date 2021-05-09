@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -20,7 +22,14 @@ type testCaseOrErr struct {
 }
 
 func main() {
-
+	reader := bufio.NewReader(os.Stdin)
+	testCases := loadTestCasesToChannel(reader)
+	for test := range testCases {
+		if test.err != nil {
+			log.Fatal(test.err)
+		}
+		fmt.Println(test)
+	}
 }
 
 // -------- Input reading -------- //
@@ -51,13 +60,17 @@ func parseIntFields(line string) (ints []int, err error) {
 	return
 }
 
-func parseRowAndColNum(reader bufio.Reader) (row, col int, err error) {
+func parseIntsFromNextLine(reader *bufio.Reader) (ints []int, err error) {
 	line, err := reader.ReadString('\n')
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return
 	}
-	
-	intFields, err := parseIntFields(line)
+
+	return parseIntFields(line)
+}
+
+func parseRowAndColNum(reader *bufio.Reader) (row, col int, err error) {
+	intFields, err := parseIntsFromNextLine(reader)
 	if err != nil {
 		return
 	}
@@ -69,40 +82,52 @@ func parseRowAndColNum(reader bufio.Reader) (row, col int, err error) {
 
 	row = intFields[0]
 	col = intFields[1]
-	
+
 	return
 }
 
-func parseGrid(rows int, cols int, reader bufio.Reader) ([][]int, error) {
-	var grid [rows][cols]int
-	
+func parseNumTestCases(reader *bufio.Reader) (numTestCases int, err error) {
+	firstLineInts, err := parseIntsFromNextLine(reader)
+	if err != nil {
+		return
+	}
+
+	if len(firstLineInts) != 1 {
+		err = fmt.Errorf("unexpected number of ints in test case number definition")
+
+		return
+	}
+
+	numTestCases = firstLineInts[0]
+
+	return
+}
+
+func parseGrid(rows int, cols int, reader *bufio.Reader) ([][]int, error) {
+	grid := make([][]int, rows)
+
 	for i := 0; i < rows; i++ {
-		line, err := reader.ReadString('\n')
+		row, err := parseIntsFromNextLine(reader)
 		if err != nil {
 			return grid, err
 		}
-	
-		row, err := parseIntFields(line)
-		if err != nil {
-			return grid, err
-		}
-	
+
 		grid[i] = row
 	}
 
 	return grid, nil
 }
 
-func loadTestCasesToChannel(reader bufio.Reader) <-chan testCaseOrErr {
+func loadTestCasesToChannel(reader *bufio.Reader) <-chan testCaseOrErr {
 	out := make(chan testCaseOrErr)
-	
+
 	go func() {
 		defer close(out)
-		
-		numberOfTestCases, err := reader.ReadString('\n')
+
+		numberOfTestCases, err := parseNumTestCases(reader)
 		if err != nil {
 			out <- testCaseOrErr{err: err}
-			
+
 			return
 		}
 
@@ -110,36 +135,13 @@ func loadTestCasesToChannel(reader bufio.Reader) <-chan testCaseOrErr {
 			rows, cols, err := parseRowAndColNum(reader)
 			if err != nil {
 				out <- testCaseOrErr{err: err}
-				
+
 				return
 			}
 
 			grid, err := parseGrid(rows, cols, reader)
-			if err != nil {
-				out <- testCaseOrErr{err: err}
-				
-				return
-			}
 
-			out <- newTestCaseOrErr(rows, cols, grid)
-		}
-
-		for {
-			line, err := reader.ReadString('\n')
-			if err == io.EOF {
-				return
-			}
-			if err != nil {
-				out <- testCaseOrErr{err: err}
-				return
-			}
-
-			, err := recordToPoint(record)
-			if err != nil {
-				out <- PointOrErr{Err: err}
-				return
-			}
-			out <- PointOrErr{Point: point}
+			out <- newTestCaseOrErr(rows, cols, grid, err)
 		}
 	}()
 
