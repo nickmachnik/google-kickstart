@@ -10,6 +10,164 @@ import (
 	"strings"
 )
 
+type boolMatrix [][]int
+type costMatrix [][]int
+
+type entryValue struct {
+	known bool
+	value bool
+}
+
+type entry struct {
+	row   int
+	col   int
+	cost  int
+	value entryValue
+}
+
+type entries map[*entry]struct{}
+
+type rowOrColumn struct {
+	entries        entries
+	observedParity bool
+	expectedParity bool
+}
+
+type dependencyGroup struct {
+	resolvableEntries map[entry]struct{}
+	rows              map[int]*rowOrColumn
+	cols              map[int]*rowOrColumn
+}
+
+func newDependencyGroup() *dependencyGroup {
+	return &dependencyGroup{
+		resolvableEntries: make(map[entry]struct{}),
+		rows:              make(map[int]*rowOrColumn),
+		cols:              make(map[int]*rowOrColumn),
+	}
+}
+
+func buildDependencyGroup(startingRowIndex int, test *testCase) (g *dependencyGroup, coveredRows map[int]struct{}) {
+	coveredRows = make(map[int]struct{})
+	g = newDependencyGroup()
+	rowsToAdd := make(map[int]struct{})
+	colsToAdd := make(map[int]struct{})
+	rowsToAdd[startingRowIndex] = struct{}{}
+
+	for len(rowsToAdd) != 0 || len(colsToAdd) != 0 {
+		for rowIndex := range rowsToAdd {
+			for _, colIndex := range g.addRow(rowIndex, test) {
+				colsToAdd[colIndex] = struct{}{}
+			}
+			coveredRows[rowIndex] = struct{}{}
+			delete(rowsToAdd, rowIndex)
+		}
+
+		for colIndex := range colsToAdd {
+			for _, rowIndex := range g.addCol(colIndex, test) {
+				rowsToAdd[rowIndex] = struct{}{}
+			}
+			delete(colsToAdd, colIndex)
+		}
+	}
+
+	return
+}
+
+func (g *dependencyGroup) addRow(rowIndex int, test *testCase) (colsToAdd []int) {
+	newRow := rowOrColumn{
+		expectedParity: test.rowChecksums[rowIndex] == 1,
+		entries:        make(entries),
+	}
+
+	for colIndex, value := range test.boolMatrix[rowIndex] {
+		if value < 0 {
+			if _, ok := g.cols[colIndex]; !ok {
+				colsToAdd = append(colsToAdd, colIndex)
+			}
+			newRow.entries[newUnknownEntry(rowIndex, colIndex, test.costMatrix[rowIndex][colIndex])] = struct{}{}
+		} else if value == 1 {
+			newRow.flipParity()
+		}
+	}
+
+	g.rows[rowIndex] = &newRow
+	if len(newRow.entries) == 1 {
+		var e *entry
+		for e = range newRow.entries {
+			break
+		}
+		g.resolvableEntries[*e] = struct{}{}
+	}
+
+	return
+}
+
+func (g *dependencyGroup) addCol(colIndex int, test *testCase) (rowsToAdd []int) {
+	newCol := rowOrColumn{
+		expectedParity: test.colChecksums[colIndex] == 1,
+		entries:        make(entries),
+	}
+
+	for rowIndex := 0; rowIndex < test.n; rowIndex++ {
+		value := test.boolMatrix[rowIndex][colIndex]
+		if value < 0 {
+			if _, ok := g.rows[rowIndex]; !ok {
+				rowsToAdd = append(rowsToAdd, rowIndex)
+			}
+			newCol.entries[newUnknownEntry(rowIndex, colIndex, test.costMatrix[rowIndex][colIndex])] = struct{}{}
+		} else if value == 1 {
+			newCol.flipParity()
+		}
+	}
+
+	g.cols[colIndex] = &newCol
+	if len(newCol.entries) == 1 {
+		var e *entry
+		for e = range newCol.entries {
+			break
+		}
+		g.resolvableEntries[*e] = struct{}{}
+	}
+
+	return
+}
+
+func (r *rowOrColumn) flipParity() {
+	r.observedParity = !r.observedParity
+}
+
+func newUnknownEntry(row int, col int, cost int) *entry {
+	return &entry{row, col, cost, entryValue{false, false}}
+}
+
+func (g *dependencyGroup) resolve() (cost int) {
+
+	return
+}
+
+func resolveMatrix(test *testCase) (cost int) {
+	solvedRows := make(map[int]struct{})
+	for rowIndex := 0; rowIndex < test.n; rowIndex++ {
+		if _, ok := solvedRows[rowIndex]; ok {
+			continue
+		}
+		for colIndex := 0; colIndex < test.n; colIndex++ {
+			if test.boolMatrix[rowIndex][colIndex] < 0 {
+				group, groupRows := buildDependencyGroup(rowIndex, test)
+				for rowIndex := range groupRows {
+					solvedRows[rowIndex] = struct{}{}
+				}
+				fmt.Println(group)
+				cost += group.resolve()
+				break
+			}
+		}
+	}
+
+	return
+}
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 	testCases := loadTestCasesToChannel(reader)
@@ -19,7 +177,9 @@ func main() {
 		if test.err != nil {
 			log.Fatal(test.err)
 		}
-		// fmt.Printf("Case #%d: %d\n", testIx, numAdditions)
+		fmt.Println(test.testCase)
+		resolveMatrix(&test.testCase)
+		fmt.Println()
 	}
 }
 
@@ -27,8 +187,8 @@ func main() {
 
 type testCase struct {
 	n            int
-	boolMatrix   [][]int
-	costMatrix   [][]int
+	boolMatrix   boolMatrix
+	costMatrix   costMatrix
 	rowChecksums []int
 	colChecksums []int
 }
