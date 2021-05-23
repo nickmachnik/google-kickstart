@@ -11,6 +11,31 @@ import (
 	"strings"
 )
 
+const MOD = 1000000007
+
+// func IntPow(n, m int) int {
+// 	if m == 0 {
+// 		return 1
+// 	}
+// 	result := n
+// 	for i := 2; i <= m; i++ {
+// 		result *= n
+// 		if result > MOD {
+// 			result = result % MOD
+// 		}
+// 	}
+// 	return result
+// }
+
+func modularPow(base, exp int) int {
+	res := 1
+	for e := 0; e < exp; e++ {
+		res = (res * base) % MOD
+	}
+
+	return res
+}
+
 // alphabetIndex returns the 0 based index of a lowercase letter in the english alphabet
 // no bound checks!
 func alphabetIndex(c rune) int {
@@ -22,21 +47,17 @@ func countSmallerPalindromes(test *testCase) (res int) {
 	s := []rune(test.s)
 
 	for i := 0; i < half; i++ {
-		res += alphabetIndex(s[i]) * int(math.Pow(float64(test.k), float64(half-i-1)))
+		res += alphabetIndex(s[i]) * modularPow(test.k, half-i-1)
 	}
 
-	// at least one smaller, none larger
-	var anyLarger, anySmaller bool
 	for i := half; i < test.n; i++ {
-		if s[test.n-i-1] > s[i] {
-			anyLarger = true
-		} else if s[test.n-i-1] < s[i] {
-			anySmaller = true
+		if s[test.n-i-1] < s[i] {
+			res++
+			break
 		}
-		fmt.Println(res, s[test.n-i-1], s[i], anyLarger, anySmaller)
-	}
-	if !anyLarger && anySmaller {
-		res++
+		if s[test.n-i-1] > s[i] {
+			break
+		}
 	}
 
 	return
@@ -52,7 +73,7 @@ func main() {
 			log.Fatal(test.err)
 		}
 		// fmt.Println(test.testCase)
-		fmt.Printf("Case #%d: %d\n", testIx, countSmallerPalindromes(&test.testCase)%int(math.Pow(10, 9)+7))
+		fmt.Printf("Case #%d: %d\n", testIx, countSmallerPalindromes(&test.testCase)%MOD)
 	}
 }
 
