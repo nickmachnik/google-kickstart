@@ -17,43 +17,26 @@ func alphabetIndex(c rune) int {
 	return int(c) - 97
 }
 
-func countSmallerPalindromes(test *testCase) (res int) {
-	var addOne bool
-	var lastPos int
-	if test.n == 1 {
-		lastPos = 0
-	} else if test.n%2 == 0 {
-		lastPos = (test.n / 2) - 1
-	} else {
-		lastPos = test.n / 2
-	}
-	for p, c := range test.s {
-		nSmallerLetters := alphabetIndex(c)
-		remainingPositions := lastPos - p
-		if remainingPositions < 0 {
-			remainingPositions = 0
-		}
+func countSmallerPalindromes(s []rune, variablePos, alphabetSize int) (count int, inputIsPalindrome bool) {
+	n := len(s)
 
-		newOptions := nSmallerLetters * int(math.Pow(float64(test.k), float64(remainingPositions)))
-
-		fmt.Println("at pos", p, "added", newOptions, "with", remainingPositions, "remaining positions")
-
-		res += newOptions
-
-		if test.s[p] < test.s[test.n-p-1] {
-			addOne = true
-		}
-
-		if p == lastPos {
-			break
-		}
+	if n == 0 {
+		return 0, true
 	}
 
-	if addOne {
-		res++
+	smallerLetters := alphabetIndex(s[0])
+	if n == 1 {
+		return smallerLetters, true
 	}
 
-	return
+	innerPalindromes := math.Pow(float64(alphabetSize), float64(variablePos))
+	innerCount, innerIsPalindrome := countSmallerPalindromes(s[1:n-1], variablePos-1, alphabetSize)
+	inputIsPalindrome = innerIsPalindrome && s[0] == s[n-1]
+	if innerIsPalindrome && s[0] < s[n-1] {
+		innerCount++
+	}
+	return smallerLetters*int(innerPalindromes) + innerCount, inputIsPalindrome
+
 }
 
 func main() {
@@ -65,8 +48,10 @@ func main() {
 		if test.err != nil {
 			log.Fatal(test.err)
 		}
-		// fmt.Println(test.testCase)
-		fmt.Printf("Case #%d: %d\n", testIx, countSmallerPalindromes(&test.testCase)%int(math.Pow(10, 9)+7))
+		s := []rune(test.testCase.s)
+		variablePos := int(math.Ceil(float64(test.testCase.n)/float64(2))) - 1
+		palCount, _ := countSmallerPalindromes(s, variablePos, test.testCase.k)
+		fmt.Printf("Case #%d: %d\n", testIx, palCount%int(math.Pow(10, 9)+7))
 	}
 }
 
