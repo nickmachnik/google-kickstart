@@ -13,13 +13,8 @@ import (
 
 const MOD = 1000000007
 
-func modularPow(base, exp int) int {
-	res := 1
-	for e := 0; e < exp; e++ {
-		res = (res * base) % MOD
-	}
-
-	return res
+func modularProd(a, b int) int {
+	return a * b % MOD
 }
 
 // alphabetIndex returns the 0 based index of a lowercase letter in the english alphabet
@@ -32,8 +27,10 @@ func countSmallerPalindromes(test *testCase) (res int) {
 	half := int(math.Ceil(float64(test.n) / 2))
 	s := []rune(test.s)
 
+	kPowI := 1
 	for i := 0; i < half; i++ {
-		res += alphabetIndex(s[i]) * modularPow(test.k, half-i-1)
+		res += alphabetIndex(s[half-i-1]) * kPowI
+		kPowI = modularProd(kPowI, test.k)
 	}
 
 	for i := half; i < test.n; i++ {
@@ -58,7 +55,6 @@ func main() {
 		if test.err != nil {
 			log.Fatal(test.err)
 		}
-		// fmt.Println(test.testCase)
 		fmt.Printf("Case #%d: %d\n", testIx, countSmallerPalindromes(&test.testCase)%MOD)
 	}
 }
