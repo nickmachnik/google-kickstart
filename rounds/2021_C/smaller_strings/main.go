@@ -13,20 +13,6 @@ import (
 
 const MOD = 1000000007
 
-// func IntPow(n, m int) int {
-// 	if m == 0 {
-// 		return 1
-// 	}
-// 	result := n
-// 	for i := 2; i <= m; i++ {
-// 		result *= n
-// 		if result > MOD {
-// 			result = result % MOD
-// 		}
-// 	}
-// 	return result
-// }
-
 func modularPow(base, exp int) int {
 	res := 1
 	for e := 0; e < exp; e++ {
