@@ -146,6 +146,22 @@ func (g *dependencyGroup) resolve() (cost int) {
 	return
 }
 
+func (g *dependencyGroup) resolveResolvable() {
+	for e := range g.resolvableEntries {
+		e.value.known = true
+
+		if len(g.rows[e.row].entries) == 1 {
+			e.value.value = g.rows[e.row].expectedParity != g.rows[e.row].observedParity
+			g.rows
+
+		} else {
+			e.value.value = g.cols[e.col].expectedParity != g.cols[e.col].observedParity
+		}
+
+		delete(g.resolvableEntries, e)
+	}
+}
+
 func resolveMatrix(test *testCase) (cost int) {
 	solvedRows := make(map[int]struct{})
 	for rowIndex := 0; rowIndex < test.n; rowIndex++ {
