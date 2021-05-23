@@ -18,38 +18,24 @@ func alphabetIndex(c rune) int {
 }
 
 func countSmallerPalindromes(test *testCase) (res int) {
-	var addOne bool
-	var lastPos int
-	if test.n == 1 {
-		lastPos = 0
-	} else if test.n%2 == 0 {
-		lastPos = (test.n / 2) - 1
-	} else {
-		lastPos = test.n / 2
-	}
-	for p, c := range test.s {
-		nSmallerLetters := alphabetIndex(c)
-		remainingPositions := lastPos - p
-		if remainingPositions < 0 {
-			remainingPositions = 0
-		}
+	half := int(math.Ceil(float64(test.n) / 2))
+	s := []rune(test.s)
 
-		newOptions := nSmallerLetters * int(math.Pow(float64(test.k), float64(remainingPositions)))
-
-		fmt.Println("at pos", p, "added", newOptions, "with", remainingPositions, "remaining positions")
-
-		res += newOptions
-
-		if test.s[p] < test.s[test.n-p-1] {
-			addOne = true
-		}
-
-		if p == lastPos {
-			break
-		}
+	for i := 0; i < half; i++ {
+		res += alphabetIndex(s[i]) * int(math.Pow(float64(test.k), float64(half-i-1)))
 	}
 
-	if addOne {
+	// at least one smaller, none larger
+	var anyLarger, anySmaller bool
+	for i := half; i < test.n; i++ {
+		if s[test.n-i-1] > s[i] {
+			anyLarger = true
+		} else if s[test.n-i-1] < s[i] {
+			anySmaller = true
+		}
+		fmt.Println(res, s[test.n-i-1], s[i], anyLarger, anySmaller)
+	}
+	if !anyLarger && anySmaller {
 		res++
 	}
 
