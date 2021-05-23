@@ -5,10 +5,56 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
 )
+
+// alphabetIndex returns the 0 based index of a lowercase letter in the english alphabet
+// no bound checks!
+func alphabetIndex(c rune) int {
+	return int(c) - 97
+}
+
+func countSmallerPalindromes(test *testCase) (res int) {
+	var addOne bool
+	var lastPos int
+	if test.n == 1 {
+		lastPos = 0
+	} else if test.n%2 == 0 {
+		lastPos = (test.n / 2) - 1
+	} else {
+		lastPos = test.n / 2
+	}
+	for p, c := range test.s {
+		nSmallerLetters := alphabetIndex(c)
+		remainingPositions := lastPos - p
+		if remainingPositions < 0 {
+			remainingPositions = 0
+		}
+
+		newOptions := nSmallerLetters * int(math.Pow(float64(test.k), float64(remainingPositions)))
+
+		fmt.Println("at pos", p, "added", newOptions, "with", remainingPositions, "remaining positions")
+
+		res += newOptions
+
+		if test.s[p] < test.s[test.n-p-1] {
+			addOne = true
+		}
+
+		if p == lastPos {
+			break
+		}
+	}
+
+	if addOne {
+		res++
+	}
+
+	return
+}
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
@@ -19,8 +65,8 @@ func main() {
 		if test.err != nil {
 			log.Fatal(test.err)
 		}
-		fmt.Println(test.testCase)
-		fmt.Println()
+		// fmt.Println(test.testCase)
+		fmt.Printf("Case #%d: %d\n", testIx, countSmallerPalindromes(&test.testCase)%int(math.Pow(10, 9)+7))
 	}
 }
 
