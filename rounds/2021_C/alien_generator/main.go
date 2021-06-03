@@ -27,8 +27,9 @@ func main() {
 // -------- Test solving --------- //
 
 func countMaxProductiveInputs(test *testCase) (count int) {
-	for k := 1; k <= test.g; k++ {
-		if hasPositiveIntegerRoot(k, test.g) {
+	maxI := int(math.Sqrt(2.0 * float64(test.g)))
+	for i := 1; i <= maxI; i++ {
+		if hasPositiveIntegerRoot(i, test.g) {
 			count++
 		}
 	}
@@ -36,19 +37,10 @@ func countMaxProductiveInputs(test *testCase) (count int) {
 	return
 }
 
-func hasPositiveIntegerRoot(k, g int) bool {
-	a := 1
-	b := 2*k - 1
-	c := -2 * g
-	negB := -b
-	twoA := 2 * a
-	bSquared := b * b
-	fourAC := 4 * a * c
-	discrim := bSquared - fourAC
-	sq := math.Sqrt(float64(discrim))
-	xpos := (float64(negB) + sq) / float64(twoA)
+func hasPositiveIntegerRoot(i, g int) bool {
+	root := float64(2*g+i-i*i) / float64(2*i)
 
-	return isIntegral(xpos) && xpos > 0
+	return isIntegral(root) && root >= 0
 }
 
 func isIntegral(val float64) bool {
